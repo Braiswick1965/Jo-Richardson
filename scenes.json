@@ -1,40 +1,73 @@
 {
     "scenes": [
         {
-            "id": "entrance",
-            "name": "School Entrance",
-            "image": "images/entrance.jpg",
-            "icon": "🏫"
-        },
-        {
-            "id": "library",
-            "name": "Library",
-            "image": "images/library.jpg",
-            "icon": "📚"
-        },
-        {
-            "id": "gymnasium",
-            "name": "Gymnasium",
-            "image": "images/gymnasium.jpg",
-            "icon": "🏀"
-        },
-        {
-            "id": "cafeteria",
-            "name": "Cafeteria",
-            "image": "images/cafeteria.jpg",
-            "icon": "🍽️"
-        },
-        {
-            "id": "classroom",
-            "name": "Science Classroom",
-            "image": "images/classroom.jpg",
-            "icon": "🔬"
+            "id": "performance-spaces",
+            "name": "🏛️ Performance Spaces",
+            "isHeader": true
         },
         {
             "id": "auditorium",
             "name": "Auditorium",
             "image": "images/auditorium.jpg",
+            "icon": "🎪"
+        },
+        {
+            "id": "drama-room",
+            "name": "Drama Room",
+            "image": "images/drama-room.jpg",
+            "icon": "🎬"
+        },
+        {
+            "id": "large-drama-room-light",
+            "name": "Large Drama Room (Light)",
+            "image": "images/large-drama-room-light.jpg",
+            "icon": "☀️"
+        },
+        {
+            "id": "large-drama-room-dark",
+            "name": "Large Drama Room (Dark)",
+            "image": "images/large-drama-room-dark.jpg",
+            "icon": "🌙"
+        },
+        {
+            "id": "small-drama-room",
+            "name": "Small Drama Room",
+            "image": "images/small-drama-room.jpg",
             "icon": "🎭"
+        },
+        {
+            "id": "teaching-areas",
+            "name": "📚 Teaching Areas",
+            "isHeader": true
+        },
+        {
+            "id": "class-room",
+            "name": "Class Room",
+            "image": "images/class-room.jpg",
+            "icon": "📚"
+        },
+        {
+            "id": "dance-studio",
+            "name": "Dance Studio",
+            "image": "images/dance-studio.jpg",
+            "icon": "💃"
+        },
+        {
+            "id": "community-spaces",
+            "name": "🤝 Community Spaces",
+            "isHeader": true
+        },
+        {
+            "id": "sixthform-community-room",
+            "name": "Sixthform Community Room",
+            "image": "images/sixthform-community-room.jpg",
+            "icon": "🎓"
+        },
+        {
+            "id": "sports-hall",
+            "name": "Sports Hall",
+            "image": "images/sports-hall.jpg",
+            "icon": "🏀"
         }
     ]
 }
