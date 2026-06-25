@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>360° Virtual Tour</title>
+    <style>
+        /* ============================================
+                   RESET & BASE
+                   ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* ============================================
+                   VIEWER CONTAINER
+                   ============================================ */
+        #viewer-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background: #0a0a0f;
+        }
+
+        #viewer-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ============================================
+                   LOADER
+                   ============================================ */
+        #loader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a0f;
+            z-index: 10;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loader-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+
+        .loader-progress {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.75rem;
+            margin-top: 6px;
+        }
+
+        /* ============================================
+                   SCENE SELECTOR (Bottom Left)
+                   ============================================ */
+        #scene-selector {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 8px;
+            max-height: 80vh;
+            overflow-y: auto;
+            min-width: 180px;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        #scene-selector::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #scene-selector::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #scene-selector::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .scene-selector-header {
+            padding: 8px 12px 12px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .scene-selector-toggle {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0 4px;
+            display: none;
+        }
+
+        .scene-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.85rem;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+        }
+
+        .scene-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+
+        .scene-item.active {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .scene-item .thumb {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.05);
+            flex-shrink: 0;
+        }
+
+        .scene-item .badge {
+            margin-left: auto;
+            font-size: 0.6rem;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 8px;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .scene-item.active .badge {
+            background: rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* ============================================
+                   CONTROLS (Bottom Center)
+                   ============================================ */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 6px 10px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+            z-index: 20;
+            user-select: none;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        .control-btn:active {
+            transform: scale(0.92);
+        }
+
+        .control-divider {
+            width: 1px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: 0 4px;
+        }
+
+        .control-label {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.6rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            padding: 0 8px;
+            white-space: nowrap;
+        }
+
+        /* ============================================
+                   LOGO (Bottom Right)
+                   ============================================ */
+        #logo {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 15;
+            pointer-events: none;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        #logo img {
+            height: 40px;
+            width: auto;
+            filter: brightness(0) invert(1);
+        }
+
+        #logo:hover {
+            opacity: 1;
+        }
+
+        /* ============================================
+                   ERROR MESSAGE
+                   ============================================ */
+        #error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            text-align: center;
+            z-index: 8;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: none;
+            max-width: 400px;
+        }
+
+        #error-message .icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        /* ============================================
+                   RESPONSIVE
+                   ============================================ */
+        @media (max-width: 768px) {
+            #scene-selector {
+                bottom: 80px;
+                left: 16px;
+                right: 16px;
+                min-width: unset;
+                max-height: 50vh;
+                padding: 6px;
+            }
+
+            .scene-selector-header {
+                padding: 6px 10px 10px 10px;
+                font-size: 0.7rem;
+            }
+
+            .scene-item {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+
+            .scene-item .thumb {
+                width: 28px;
+                height: 28px;
+            }
+
+            #controls {
+                bottom: 16px;
+                padding: 4px 8px;
+                gap: 2px;
+            }
+
+            .control-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 0.85rem;
+            }
+
+            .control-label {
+                display: none;
+            }
+
+            .control-divider {
+                height: 20px;
+            }
+
+            #logo {
+                bottom: 80px;
+                right: 16px;
+            }
+
+            #logo img {
+                height: 30px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #scene-selector {
+                bottom: 72px;
+                left: 12px;
+                right: 12px;
+                padding: 4px;
+            }
+
+            .scene-item {
+                padding: 4px 8px;
+                font-size: 0.75rem;
+                gap: 6px;
+            }
+
+            .scene-item .thumb {
+                width: 24px;
+                height: 24px;
+            }
+
+            #controls {
+                bottom: 12px;
+                padding: 3px 6px;
+                gap: 1px;
+            }
+
+            .control-btn {
+                width: 26px;
+                height: 26px;
+                font-size: 0.75rem;
+            }
+
+            #logo img {
+                height: 24px;
+            }
+        }
+
+        /* Scene selector toggle for mobile */
+        .scene-selector-collapsed .scene-item {
+            display: none;
+        }
+
+        .scene-selector-collapsed .scene-selector-toggle {
+            display: block;
+        }
+
+        .scene-selector-collapsed .scene-selector-header {
+            border-bottom: none;
+            padding-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================
+    VIEWER
+    ============================================ -->
+    <div id="viewer-container">
+
+        <!-- LOADER -->
+        <div id="loader">
+            <div class="loader-spinner"></div>
+            <div class="loader-text">Loading 360° Experience</div>
+            <div class="loader-progress" id="loader-progress">Preparing...</div>
+        </div>
+
+        <!-- ERROR MESSAGE -->
+        <div id="error-message">
+            <span class="icon">🔄</span>
+            <div>Unable to load panorama</div>
+        </div>
+
+        <!-- LOGO (Bottom Right) -->
+        <div id="logo">
+            <img src="https://static.wixstatic.com/media/42e05c_12592fc2a93e4bf0b1e30417fc3a3694~mv2.png" alt="Logo" />
+        </div>
+
+        <!-- SCENE SELECTOR (Bottom Left) -->
+        <div id="scene-selector">
+            <div class="scene-selector-header">
+                <span>📍 Scenes</span>
+                <button class="scene-selector-toggle" id="scene-toggle">☰</button>
+            </div>
+            <div id="scene-list">
+                <!-- Scenes will be loaded from scenes.json -->
+            </div>
+        </div>
+
+        <!-- CONTROLS (Bottom Center) -->
+        <div id="controls">
+            <button class="control-btn" id="reset-btn" title="Reset View">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9m0 0v6m0-6h-6"/>
+                </svg>
+            </button>
+
+            <div class="control-divider"></div>
+
+            <button class="control-btn" id="fullscreen-btn" title="Fullscreen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+            </button>
+
+            <div class="control-divider"></div>
+
+            <button class="control-btn" id="zoom-in-btn" title="Zoom In">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                    <path d="M11 8v6"/>
+                    <path d="M8 11h6"/>
+                </svg>
+            </button>
+
+            <button class="control-btn" id="zoom-out-btn" title="Zoom Out">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                    <path d="M8 11h6"/>
+                </svg>
+            </button>
+
+            <div class="control-divider"></div>
+
+            <span class="control-label">DRAG TO EXPLORE</span>
+        </div>
+    </div>
+
+    <!-- ============================================
+    THREE.JS
+    ============================================ -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <!-- ============================================
+    MAIN APPLICATION
+    ============================================ -->
+    <script type="module">
+        // =============================================
+        // IMPORTS
+        // =============================================
+        import * as THREE from 'three';
+
+        // =============================================
+        // DOM REFS
+        // =============================================
+        const container = document.getElementById('viewer-container');
+        const loader = document.getElementById('loader');
+        const loaderProgress = document.getElementById('loader-progress');
+        const errorMsg = document.getElementById('error-message');
+        const sceneList = document.getElementById('scene-list');
+        const sceneSelector = document.getElementById('scene-selector');
+
+        // =============================================
+        // STATE
+        // =============================================
+        const state = {
+            scenes: [],
+            currentScene: null,
+            isDragging: false,
+            prevPos: { x: 0, y: 0 },
+            yaw: 0,
+            pitch: 0,
+            fov: 75,
+            minFov: 30,
+            maxFov: 110,
+            sensitivity: 0.005,
+            isLoading: false,
+        };
+
+        const PITCH_LIMIT = Math.PI / 2 - 0.05;
+
+        // =============================================
+        // SETUP THREE.JS
+        // =============================================
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance',
+        });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        container.prepend(renderer.domElement);
+
+        const sphereGeometry = new THREE.SphereGeometry(500, 64, 64);
+        let sphereMesh = null;
+        let textureLoaded = false;
+
+        // =============================================
+        // CAMERA UPDATE
+        // =============================================
+        function updateCamera() {
+            const radius = 1;
+            const x = radius * Math.cos(state.pitch) * Math.sin(state.yaw);
+            const y = radius * Math.sin(state.pitch);
+            const z = radius * Math.cos(state.pitch) * Math.cos(state.yaw);
+            camera.lookAt(x, y, z);
+            camera.fov = state.fov;
+            camera.updateProjectionMatrix();
+        }
+
+        // =============================================
+        // LOAD SCENES FROM JSON
+        // =============================================
+        async function loadScenes() {
+            try {
+                const response = await fetch('scenes.json');
+                if (!response.ok) throw new Error('Failed to load scenes.json');
+                const data = await response.json();
+                state.scenes = data.scenes;
+                renderSceneList();
+                // Load first scene by default
+                if (state.scenes.length > 0) {
+                    loadPanorama(state.scenes[0]);
+                }
+            } catch (error) {
+                console.error('Error loading scenes:', error);
+                // Fallback: try to load default panorama
+                loadPanorama({ id: 'default', name: 'Panorama', image: 'panorama.jpg' });
+            }
+        }
+
+        // =============================================
+        // RENDER SCENE LIST
+        // =============================================
+        function renderSceneList() {
+            sceneList.innerHTML = '';
+            state.scenes.forEach((sceneData, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'scene-item' + (index === 0 ? ' active' : '');
+                btn.dataset.index = index;
+
+                // Thumbnail placeholder (uses emoji or first letter)
+                const thumb = document.createElement('span');
+                thumb.className = 'thumb';
+                thumb.textContent = sceneData.icon || '📍';
+                thumb.style.display = 'flex';
+                thumb.style.alignItems = 'center';
+                thumb.style.justifyContent = 'center';
+                thumb.style.fontSize = '16px';
+
+                const name = document.createElement('span');
+                name.textContent = sceneData.name;
+
+                const badge = document.createElement('span');
+                badge.className = 'badge';
+                badge.textContent = '360°';
+
+                btn.appendChild(thumb);
+                btn.appendChild(name);
+                btn.appendChild(badge);
+
+                btn.addEventListener('click', () => {
+                    loadPanorama(sceneData);
+                    document.querySelectorAll('.scene-item').forEach(el => el.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+
+                sceneList.appendChild(btn);
+            });
+        }
+
+        // =============================================
+        // LOAD PANORAMA
+        // =============================================
+        function loadPanorama(sceneData) {
+            if (state.isLoading) return;
+            state.isLoading = true;
+            state.currentScene = sceneData;
+
+            loader.classList.remove('hidden');
+            loaderProgress.textContent = `Loading ${sceneData.name}...`;
+            errorMsg.style.display = 'none';
+
+            const imageUrl = sceneData.image;
+
+            // Use fetch + blob for progress tracking
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', imageUrl, true);
+            xhr.responseType = 'blob';
+
+            xhr.onprogress = (event) => {
+                if (event.total > 0) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    loaderProgress.textContent = `Loading ${sceneData.name}... ${percent}%`;
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    const blob = xhr.response;
+                    const url = URL.createObjectURL(blob);
+                    const img = new Image();
+
+                    img.onload = () => {
+                        URL.revokeObjectURL(url);
+                        loaderProgress.textContent = 'Creating panorama...';
+
+                        const texture = new THREE.Texture(img);
+                        texture.colorSpace = THREE.SRGBColorSpace;
+                        texture.needsUpdate = true;
+
+                        createSphere(texture);
+                        state.isLoading = false;
+                    };
+
+                    img.onerror = () => {
+                        handleError(`Failed to decode ${sceneData.name}`);
+                        state.isLoading = false;
+                    };
+
+                    img.src = url;
+                } else {
+                    handleError(`HTTP ${xhr.status}: ${xhr.statusText}`);
+                    state.isLoading = false;
+                }
+            };
+
+            xhr.onerror = () => {
+                handleError(`Failed to load ${sceneData.name}`);
+                state.isLoading = false;
+            };
+
+            xhr.send();
+        }
+
+        function createSphere(texture) {
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.BackSide,
+                color: 0xffffff,
+            });
+
+            if (sphereMesh) {
+                scene.remove(sphereMesh);
+                sphereMesh.geometry.dispose();
+                sphereMesh.material.dispose();
+            }
+
+            sphereMesh = new THREE.Mesh(sphereGeometry, material);
+            scene.add(sphereMesh);
+            textureLoaded = true;
+
+            // Reset view when changing scenes
+            state.yaw = 0;
+            state.pitch = 0;
+            state.fov = 75;
+            updateCamera();
+
+            loader.classList.add('hidden');
+
+            console.log(`✅ Loaded: ${state.currentScene?.name || 'Panorama'}`);
+        }
+
+        function handleError(message) {
+            console.error('❌ Error:', message);
+            loader.classList.add('hidden');
+            errorMsg.style.display = 'block';
+            errorMsg.querySelector('div').textContent = message;
+            state.isLoading = false;
+        }
+
+        // =============================================
+        // POINTER EVENTS
+        // =============================================
+        function getPointerPos(event) {
+            if (event.touches) {
+                return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+            }
+            return { x: event.clientX, y: event.clientY };
+        }
+
+        function onPointerDown(event) {
+            state.isDragging = true;
+            const pos = getPointerPos(event);
+            state.prevPos.x = pos.x;
+            state.prevPos.y = pos.y;
+        }
+
+        function onPointerMove(event) {
+            if (!state.isDragging || !textureLoaded) return;
+            const pos = getPointerPos(event);
+            const deltaX = pos.x - state.prevPos.x;
+            const deltaY = pos.y - state.prevPos.y;
+
+            state.yaw -= deltaX * state.sensitivity;
+            state.pitch -= deltaY * state.sensitivity;
+            state.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, state.pitch));
+
+            state.prevPos.x = pos.x;
+            state.prevPos.y = pos.y;
+            updateCamera();
+        }
+
+        function onPointerUp() {
+            state.isDragging = false;
+        }
+
+        // Mouse
+        renderer.domElement.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+
+        // Touch
+        renderer.domElement.addEventListener('touchstart', onPointerDown, { passive: true });
+        window.addEventListener('touchmove', onPointerMove, { passive: true });
+        window.addEventListener('touchend', onPointerUp, { passive: true });
+
+        renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // =============================================
+        // BUTTON HANDLERS
+        // =============================================
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            state.yaw = 0;
+            state.pitch = 0;
+            state.fov = 75;
+            updateCamera();
+        });
+
+        document.getElementById('fullscreen-btn').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen?.();
+            } else {
+                document.exitFullscreen?.();
+            }
+        });
+
+        document.getElementById('zoom-in-btn').addEventListener('click', () => {
+            state.fov = Math.max(state.minFov, state.fov - 5);
+            updateCamera();
+        });
+
+        document.getElementById('zoom-out-btn').addEventListener('click', () => {
+            state.fov = Math.min(state.maxFov, state.fov + 5);
+            updateCamera();
+        });
+
+        // Toggle scene selector on mobile
+        document.getElementById('scene-toggle').addEventListener('click', () => {
+            sceneSelector.classList.toggle('scene-selector-collapsed');
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') document.getElementById('fullscreen-btn').click();
+            if (e.key === 'r' || e.key === 'R') document.getElementById('reset-btn').click();
+            if (e.key === '+' || e.key === '=') document.getElementById('zoom-in-btn').click();
+            if (e.key === '-') document.getElementById('zoom-out-btn').click();
+        });
+
+        // =============================================
+        // RESIZE
+        // =============================================
+        function onResize() {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        window.addEventListener('resize', onResize);
+
+        // =============================================
+        // ANIMATION LOOP
+        // =============================================
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // =============================================
+        // INIT
+        // =============================================
+        updateCamera();
+        loadScenes();
+
+        console.log('🌐 360° Virtual Tour v2.0');
+        console.log('📸 Loading scenes from scenes.json');
+    </script>
+</body>
+</html>
