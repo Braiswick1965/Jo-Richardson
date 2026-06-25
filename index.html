@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>360° Virtual Tour</title>
+    <title>360° Virtual Tour - School</title>
     <style>
         /* ============================================
                    RESET & BASE
@@ -107,7 +107,7 @@
             padding: 8px;
             max-height: 80vh;
             overflow-y: auto;
-            min-width: 180px;
+            min-width: 200px;
             box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
             transition: transform 0.3s ease, opacity 0.3s ease;
         }
@@ -148,6 +148,17 @@
             display: none;
         }
 
+        .scene-header {
+            padding: 10px 12px 4px 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.25);
+            cursor: default;
+            pointer-events: none;
+        }
+
         .scene-item {
             display: flex;
             align-items: center;
@@ -178,17 +189,21 @@
         }
 
         .scene-item .thumb {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 6px;
             object-fit: cover;
             background: rgba(255, 255, 255, 0.05);
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
         }
 
         .scene-item .badge {
             margin-left: auto;
-            font-size: 0.6rem;
+            font-size: 0.55rem;
             background: rgba(255, 255, 255, 0.08);
             padding: 2px 8px;
             border-radius: 10px;
@@ -337,8 +352,9 @@
             }
 
             .scene-item .thumb {
-                width: 28px;
-                height: 28px;
+                width: 24px;
+                height: 24px;
+                font-size: 12px;
             }
 
             #controls {
@@ -386,8 +402,9 @@
             }
 
             .scene-item .thumb {
-                width: 24px;
-                height: 24px;
+                width: 20px;
+                height: 20px;
+                font-size: 10px;
             }
 
             #controls {
@@ -407,7 +424,6 @@
             }
         }
 
-        /* Scene selector toggle for mobile */
         .scene-selector-collapsed .scene-item {
             display: none;
         }
@@ -454,7 +470,7 @@
                 <button class="scene-selector-toggle" id="scene-toggle">☰</button>
             </div>
             <div id="scene-list">
-                <!-- Scenes will be loaded from scenes.json -->
+                <!-- Scenes will be rendered here -->
             </div>
         </div>
 
@@ -520,6 +536,81 @@
         import * as THREE from 'three';
 
         // =============================================
+        // SCENE DATA (Hardcoded for single-file solution)
+        // =============================================
+        const SCENES = [
+            {
+                id: "performance-spaces",
+                name: "🏛️ Performance Spaces",
+                isHeader: true
+            },
+            {
+                id: "auditorium",
+                name: "Auditorium",
+                image: "images/auditorium.jpg",
+                icon: "🎪"
+            },
+            {
+                id: "drama-room",
+                name: "Drama Room",
+                image: "images/drama-room.jpg",
+                icon: "🎬"
+            },
+            {
+                id: "large-drama-room-light",
+                name: "Large Drama Room (Light)",
+                image: "images/large-drama-room-light.jpg",
+                icon: "☀️"
+            },
+            {
+                id: "large-drama-room-dark",
+                name: "Large Drama Room (Dark)",
+                image: "images/large-drama-room-dark.jpg",
+                icon: "🌙"
+            },
+            {
+                id: "small-drama-room",
+                name: "Small Drama Room",
+                image: "images/small-drama-room.jpg",
+                icon: "🎭"
+            },
+            {
+                id: "teaching-areas",
+                name: "📚 Teaching Areas",
+                isHeader: true
+            },
+            {
+                id: "class-room",
+                name: "Class Room",
+                image: "images/class-room.jpg",
+                icon: "📚"
+            },
+            {
+                id: "dance-studio",
+                name: "Dance Studio",
+                image: "images/dance-studio.jpg",
+                icon: "💃"
+            },
+            {
+                id: "community-spaces",
+                name: "🤝 Community Spaces",
+                isHeader: true
+            },
+            {
+                id: "sixthform-community-room",
+                name: "Sixthform Community Room",
+                image: "images/sixthform-community-room.jpg",
+                icon: "🎓"
+            },
+            {
+                id: "sports-hall",
+                name: "Sports Hall",
+                image: "images/sports-hall.jpg",
+                icon: "🏀"
+            }
+        ];
+
+        // =============================================
         // DOM REFS
         // =============================================
         const container = document.getElementById('viewer-container');
@@ -533,7 +624,7 @@
         // STATE
         // =============================================
         const state = {
-            scenes: [],
+            scenes: SCENES,
             currentScene: null,
             isDragging: false,
             prevPos: { x: 0, y: 0 },
@@ -583,44 +674,32 @@
         }
 
         // =============================================
-        // LOAD SCENES FROM JSON
-        // =============================================
-        async function loadScenes() {
-            try {
-                const response = await fetch('scenes.json');
-                if (!response.ok) throw new Error('Failed to load scenes.json');
-                const data = await response.json();
-                state.scenes = data.scenes;
-                renderSceneList();
-                // Load first scene by default
-                if (state.scenes.length > 0) {
-                    loadPanorama(state.scenes[0]);
-                }
-            } catch (error) {
-                console.error('Error loading scenes:', error);
-                // Fallback: try to load default panorama
-                loadPanorama({ id: 'default', name: 'Panorama', image: 'panorama.jpg' });
-            }
-        }
-
-        // =============================================
         // RENDER SCENE LIST
         // =============================================
         function renderSceneList() {
             sceneList.innerHTML = '';
+            let firstScene = null;
+
             state.scenes.forEach((sceneData, index) => {
+                if (sceneData.isHeader) {
+                    const header = document.createElement('div');
+                    header.className = 'scene-header';
+                    header.textContent = sceneData.name;
+                    sceneList.appendChild(header);
+                    return;
+                }
+
                 const btn = document.createElement('button');
-                btn.className = 'scene-item' + (index === 0 ? ' active' : '');
+                btn.className = 'scene-item';
+                if (firstScene === null) {
+                    btn.classList.add('active');
+                    firstScene = sceneData;
+                }
                 btn.dataset.index = index;
 
-                // Thumbnail placeholder (uses emoji or first letter)
                 const thumb = document.createElement('span');
                 thumb.className = 'thumb';
                 thumb.textContent = sceneData.icon || '📍';
-                thumb.style.display = 'flex';
-                thumb.style.alignItems = 'center';
-                thumb.style.justifyContent = 'center';
-                thumb.style.fontSize = '16px';
 
                 const name = document.createElement('span');
                 name.textContent = sceneData.name;
@@ -641,6 +720,11 @@
 
                 sceneList.appendChild(btn);
             });
+
+            // Load first scene
+            if (firstScene) {
+                loadPanorama(firstScene);
+            }
         }
 
         // =============================================
@@ -657,7 +741,6 @@
 
             const imageUrl = sceneData.image;
 
-            // Use fetch + blob for progress tracking
             const xhr = new XMLHttpRequest();
             xhr.open('GET', imageUrl, true);
             xhr.responseType = 'blob';
@@ -724,7 +807,6 @@
             scene.add(sphereMesh);
             textureLoaded = true;
 
-            // Reset view when changing scenes
             state.yaw = 0;
             state.pitch = 0;
             state.fov = 75;
@@ -779,12 +861,10 @@
             state.isDragging = false;
         }
 
-        // Mouse
         renderer.domElement.addEventListener('mousedown', onPointerDown);
         window.addEventListener('mousemove', onPointerMove);
         window.addEventListener('mouseup', onPointerUp);
 
-        // Touch
         renderer.domElement.addEventListener('touchstart', onPointerDown, { passive: true });
         window.addEventListener('touchmove', onPointerMove, { passive: true });
         window.addEventListener('touchend', onPointerUp, { passive: true });
@@ -819,12 +899,10 @@
             updateCamera();
         });
 
-        // Toggle scene selector on mobile
         document.getElementById('scene-toggle').addEventListener('click', () => {
             sceneSelector.classList.toggle('scene-selector-collapsed');
         });
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'f' || e.key === 'F') document.getElementById('fullscreen-btn').click();
             if (e.key === 'r' || e.key === 'R') document.getElementById('reset-btn').click();
@@ -858,10 +936,10 @@
         // INIT
         // =============================================
         updateCamera();
-        loadScenes();
+        renderSceneList();
 
-        console.log('🌐 360° Virtual Tour v2.0');
-        console.log('📸 Loading scenes from scenes.json');
+        console.log('🌐 360° Virtual Tour loaded!');
+        console.log(`📸 ${SCENES.filter(s => !s.isHeader).length} scenes available`);
     </script>
 </body>
 </html>
