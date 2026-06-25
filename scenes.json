@@ -1,0 +1,40 @@
+{
+    "scenes": [
+        {
+            "id": "entrance",
+            "name": "School Entrance",
+            "image": "images/entrance.jpg",
+            "icon": "🏫"
+        },
+        {
+            "id": "library",
+            "name": "Library",
+            "image": "images/library.jpg",
+            "icon": "📚"
+        },
+        {
+            "id": "gymnasium",
+            "name": "Gymnasium",
+            "image": "images/gymnasium.jpg",
+            "icon": "🏀"
+        },
+        {
+            "id": "cafeteria",
+            "name": "Cafeteria",
+            "image": "images/cafeteria.jpg",
+            "icon": "🍽️"
+        },
+        {
+            "id": "classroom",
+            "name": "Science Classroom",
+            "image": "images/classroom.jpg",
+            "icon": "🔬"
+        },
+        {
+            "id": "auditorium",
+            "name": "Auditorium",
+            "image": "images/auditorium.jpg",
+            "icon": "🎭"
+        }
+    ]
+}
