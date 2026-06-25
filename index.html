@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>360° Virtual Tour - School</title>
+    <title>360° Virtual Tour - Jo Richardson School</title>
     <style>
         /* ============================================
                    RESET & BASE
@@ -279,6 +279,32 @@
         }
 
         /* ============================================
+                   ZOOM INDICATOR
+                   ============================================ */
+        #zoom-indicator {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 0.65rem;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 12px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+        }
+
+        #zoom-indicator.visible {
+            opacity: 1;
+        }
+
+        /* ============================================
                    LOGO (Bottom Right)
                    ============================================ */
         #logo {
@@ -385,6 +411,12 @@
             #logo img {
                 height: 30px;
             }
+
+            #zoom-indicator {
+                bottom: 80px;
+                font-size: 0.55rem;
+                padding: 3px 10px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -422,6 +454,12 @@
             #logo img {
                 height: 24px;
             }
+
+            #zoom-indicator {
+                bottom: 72px;
+                font-size: 0.5rem;
+                padding: 2px 8px;
+            }
         }
 
         .scene-selector-collapsed .scene-item {
@@ -457,6 +495,9 @@
             <span class="icon">🔄</span>
             <div>Unable to load panorama</div>
         </div>
+
+        <!-- ZOOM INDICATOR -->
+        <div id="zoom-indicator">🔍 Scroll to zoom</div>
 
         <!-- LOGO (Bottom Right) -->
         <div id="logo">
@@ -619,6 +660,7 @@
         const errorMsg = document.getElementById('error-message');
         const sceneList = document.getElementById('scene-list');
         const sceneSelector = document.getElementById('scene-selector');
+        const zoomIndicator = document.getElementById('zoom-indicator');
 
         // =============================================
         // STATE
@@ -631,10 +673,11 @@
             yaw: 0,
             pitch: 0,
             fov: 75,
-            minFov: 30,
+            minFov: 25,
             maxFov: 110,
             sensitivity: 0.005,
             isLoading: false,
+            zoomTimeout: null,
         };
 
         const PITCH_LIMIT = Math.PI / 2 - 0.05;
@@ -671,6 +714,17 @@
             camera.lookAt(x, y, z);
             camera.fov = state.fov;
             camera.updateProjectionMatrix();
+        }
+
+        // =============================================
+        // ZOOM INDICATOR
+        // =============================================
+        function showZoomIndicator() {
+            zoomIndicator.classList.add('visible');
+            clearTimeout(state.zoomTimeout);
+            state.zoomTimeout = setTimeout(() => {
+                zoomIndicator.classList.remove('visible');
+            }, 2000);
         }
 
         // =============================================
@@ -790,7 +844,13 @@
             xhr.send();
         }
 
+        // =============================================
+        // CREATE SPHERE WITH MIRROR FIX
+        // =============================================
         function createSphere(texture) {
+            // 🔧 FIX: Flip the texture horizontally to correct mirroring
+            texture.flipX = true;
+            
             const material = new THREE.MeshBasicMaterial({
                 map: texture,
                 side: THREE.BackSide,
@@ -807,6 +867,7 @@
             scene.add(sphereMesh);
             textureLoaded = true;
 
+            // Reset view when changing scenes
             state.yaw = 0;
             state.pitch = 0;
             state.fov = 75;
@@ -872,6 +933,30 @@
         renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
         // =============================================
+        // MOUSE WHEEL ZOOM
+        // =============================================
+        function onWheelZoom(event) {
+            if (!textureLoaded) return;
+            
+            // Prevent page scrolling
+            event.preventDefault();
+            
+            // Determine zoom direction
+            const delta = event.deltaY > 0 ? 1 : -1;
+            const zoomAmount = delta * 3; // 3 degrees per scroll tick
+            
+            // Apply zoom with bounds
+            state.fov = Math.max(state.minFov, Math.min(state.maxFov, state.fov + zoomAmount));
+            updateCamera();
+            
+            // Show indicator briefly
+            showZoomIndicator();
+        }
+
+        // Add wheel event listener to the canvas
+        renderer.domElement.addEventListener('wheel', onWheelZoom, { passive: false });
+
+        // =============================================
         // BUTTON HANDLERS
         // =============================================
         document.getElementById('reset-btn').addEventListener('click', () => {
@@ -879,6 +964,12 @@
             state.pitch = 0;
             state.fov = 75;
             updateCamera();
+            showZoomIndicator();
+            // Update indicator text temporarily
+            zoomIndicator.textContent = '↺ View reset';
+            setTimeout(() => {
+                zoomIndicator.textContent = '🔍 Scroll to zoom';
+            }, 1500);
         });
 
         document.getElementById('fullscreen-btn').addEventListener('click', () => {
@@ -892,11 +983,13 @@
         document.getElementById('zoom-in-btn').addEventListener('click', () => {
             state.fov = Math.max(state.minFov, state.fov - 5);
             updateCamera();
+            showZoomIndicator();
         });
 
         document.getElementById('zoom-out-btn').addEventListener('click', () => {
             state.fov = Math.min(state.maxFov, state.fov + 5);
             updateCamera();
+            showZoomIndicator();
         });
 
         document.getElementById('scene-toggle').addEventListener('click', () => {
@@ -938,8 +1031,15 @@
         updateCamera();
         renderSceneList();
 
+        // Show zoom indicator after a moment
+        setTimeout(() => {
+            showZoomIndicator();
+        }, 2000);
+
         console.log('🌐 360° Virtual Tour loaded!');
         console.log(`📸 ${SCENES.filter(s => !s.isHeader).length} scenes available`);
+        console.log('🔧 Mirror fix applied (texture.flipX = true)');
+        console.log('🖱️ Scroll to zoom enabled');
     </script>
 </body>
 </html>
