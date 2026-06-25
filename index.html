@@ -156,12 +156,29 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s ease;
+        }
+
+        .scene-selector-header:hover {
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .scene-selector-header .count {
             font-weight: 400;
             font-size: 0.6rem;
             color: rgba(255, 255, 255, 0.3);
+        }
+
+        .scene-selector-header .toggle-icon {
+            font-size: 0.9rem;
+            transition: transform 0.3s ease;
+            display: inline-block;
+        }
+
+        #scene-selector.collapsed .scene-selector-header .toggle-icon {
+            transform: rotate(-90deg);
         }
 
         .scene-selector-toggle {
@@ -177,6 +194,17 @@
 
         .scene-selector-toggle:hover {
             color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Hide scene items when collapsed */
+        #scene-selector.collapsed .scene-item,
+        #scene-selector.collapsed .scene-header {
+            display: none;
+        }
+
+        #scene-selector.collapsed .scene-selector-header {
+            border-bottom: none;
+            padding-bottom: 8px;
         }
 
         .scene-header {
@@ -692,19 +720,6 @@
             }
         }
 
-        .scene-selector-collapsed .scene-item {
-            display: none;
-        }
-
-        .scene-selector-collapsed .scene-selector-toggle {
-            display: block;
-        }
-
-        .scene-selector-collapsed .scene-selector-header {
-            border-bottom: none;
-            padding-bottom: 6px;
-        }
-
         /* ============================================
                    UTILITY
                    ============================================ */
@@ -764,9 +779,9 @@
 
         <!-- SCENE SELECTOR (Bottom Left) - Lighter -->
         <div id="scene-selector">
-            <div class="scene-selector-header">
+            <div class="scene-selector-header" id="scene-selector-header">
                 <span>📍 Scenes <span class="count" id="scene-count"></span></span>
-                <button class="scene-selector-toggle" id="scene-toggle">☰</button>
+                <span class="toggle-icon">▾</span>
             </div>
             <div id="scene-list">
                 <!-- Scenes will be rendered here -->
@@ -826,6 +841,7 @@
                 <div class="shortcut"><span>Reset View</span><span class="key">R</span></div>
                 <div class="shortcut"><span>Zoom In</span><span class="key">+</span></div>
                 <div class="shortcut"><span>Zoom Out</span><span class="key">-</span></div>
+                <div class="shortcut"><span>Toggle Scenes</span><span class="key">S</span></div>
                 <div class="shortcut"><span>Close Help</span><span class="key">ESC</span></div>
                 <button class="close-help" id="close-help">Close</button>
             </div>
@@ -939,6 +955,7 @@
         const errorMsg = document.getElementById('error-message');
         const sceneList = document.getElementById('scene-list');
         const sceneSelector = document.getElementById('scene-selector');
+        const sceneSelectorHeader = document.getElementById('scene-selector-header');
         const sceneCount = document.getElementById('scene-count');
         const zoomIndicator = document.getElementById('zoom-indicator');
         const helpOverlay = document.getElementById('help-overlay');
@@ -954,7 +971,6 @@
             yaw: 0,
             pitch: 0,
             fov: 110,
-            // Default to max zoom out (was 75)
             minFov: 25,
             maxFov: 110,
             sensitivity: 0.005,
@@ -964,6 +980,7 @@
             autoRotateSpeed: 0.3,
             idleTime: 0,
             idleTimeout: null,
+            isSelectorCollapsed: false,
         };
 
         const PITCH_LIMIT = Math.PI / 2 - 0.05;
@@ -1002,7 +1019,6 @@
             camera.fov = state.fov;
             camera.updateProjectionMatrix();
 
-            // Update compass rotation
             updateCompass();
         }
 
@@ -1073,6 +1089,14 @@
         }
 
         // =============================================
+        // TOGGLE SCENE SELECTOR
+        // =============================================
+        function toggleSceneSelector() {
+            state.isSelectorCollapsed = !state.isSelectorCollapsed;
+            sceneSelector.classList.toggle('collapsed', state.isSelectorCollapsed);
+        }
+
+        // =============================================
         // RENDER SCENE LIST
         // =============================================
         function renderSceneList() {
@@ -1120,8 +1144,9 @@
                     loadPanorama(sceneData);
                     document.querySelectorAll('.scene-item').forEach(el => el.classList.remove('active'));
                     btn.classList.add('active');
+                    // Auto-collapse on mobile after selection
                     if (window.innerWidth <= 768) {
-                        sceneSelector.classList.add('scene-selector-collapsed');
+                        toggleSceneSelector();
                     }
                 });
 
@@ -1250,7 +1275,6 @@
                     state.yaw = 0;
                     state.pitch = 0;
                     state.fov = 110;
-                    // Start fully zoomed out
                     updateCamera();
 
                     loader.classList.add('hidden');
@@ -1336,7 +1360,6 @@
 
             const delta = event.deltaY > 0 ? 1 : -1;
             const zoomAmount = delta * 6;
-            // Was 3 - now double speed
 
             state.fov = Math.max(state.minFov, Math.min(state.maxFov, state.fov + zoomAmount));
             updateCamera();
@@ -1353,7 +1376,6 @@
             state.yaw = 0;
             state.pitch = 0;
             state.fov = 110;
-            // Reset to max zoom out
             updateCamera();
             showZoomIndicator('↺ View reset');
             resetIdleTimer();
@@ -1373,9 +1395,8 @@
             resetIdleTimer();
         });
 
-        document.getElementById('scene-toggle').addEventListener('click', () => {
-            sceneSelector.classList.toggle('scene-selector-collapsed');
-        });
+        // Scene selector header click to toggle
+        sceneSelectorHeader.addEventListener('click', toggleSceneSelector);
 
         document.getElementById('help-btn').addEventListener('click', () => {
             helpOverlay.classList.toggle('visible');
@@ -1389,6 +1410,10 @@
             if (e.key === 'r' || e.key === 'R') document.getElementById('reset-btn').click();
             if (e.key === '+' || e.key === '=') document.getElementById('zoom-in-btn').click();
             if (e.key === '-') document.getElementById('zoom-out-btn').click();
+            if (e.key === 's' || e.key === 'S') {
+                e.preventDefault();
+                toggleSceneSelector();
+            }
             if (e.key === '?') {
                 e.preventDefault();
                 helpOverlay.classList.toggle('visible');
@@ -1443,6 +1468,8 @@
         console.log('🔄 Auto-rotate enabled');
         console.log('⌨️ Press ? for keyboard shortcuts');
         console.log('📷 Default view: Fully zoomed out (FOV: 110°)');
+        console.log('📂 Click "Scenes" header to toggle menu');
+        console.log('⌨️ Press S to toggle scenes');
     </script>
 </body>
 </html>
