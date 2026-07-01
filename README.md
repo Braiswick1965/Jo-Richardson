@@ -1,14 +1,14 @@
 # 360° Virtual Tour for [Jo Richardson Community School]
 
 ## 📸 View the Tour
-Visit: `https://your-username.github.io/panorama-viewer/`
+Visit: `https://braiswickphotographic.com/jorichardson/`
 
 ## 🔗 Embed on Your Website
 
 ### Option 1: Full Page Embed
 ```html
 <iframe 
-    src="https://your-username.github.io/panorama-viewer/" 
+    src="https://braiswickphotographic.com/" 
     width="100%" 
     height="800px" 
     frameborder="0" 
