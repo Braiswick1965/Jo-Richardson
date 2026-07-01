@@ -1470,6 +1470,14 @@
         console.log('📷 Default view: Fully zoomed out (FOV: 110°)');
         console.log('📂 Click "Scenes" header to toggle menu');
         console.log('⌨️ Press S to toggle scenes');
+
+        // =============================================
+// DISABLE RIGHT-CLICK
+// =============================================
+document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+        
     </script>
 </body>
 </html>
